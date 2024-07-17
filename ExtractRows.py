@@ -1,7 +1,7 @@
 import openpyxl
-
+import os
+from datetime import datetime
 from SortColumn import move_ppp_column_to_left
-
 
 def count_yes_no_in_shipped_column(file_path, sheet_name, start_marker, end_marker, shipped_column):
     try:
@@ -71,7 +71,7 @@ def count_yes_no_in_shipped_column(file_path, sheet_name, start_marker, end_mark
 
     return results, total_yes_count, total_no_count
 
-def create_summary_rows(file_path, sheet_name, start_marker, end_marker, shipped_column):
+def create_summary_rows(file_path, sheet_name, start_marker, end_marker, shipped_column, schedule_date_column, start_work_column, end_work_column):
     try:
         # Загрузить рабочую книгу и выбрать указанный лист
         wb = openpyxl.load_workbook(file_path)
@@ -119,9 +119,34 @@ def create_summary_rows(file_path, sheet_name, start_marker, end_marker, shipped
     # Найти количество столбцов на листе
     num_columns = sheet.max_column
 
+    # Найти индекс столбца "Дата отгрузки по графику (from file1)"
+    header_row = sheet[1]  # Взять первую строку, где есть заголовки
+    schedule_date_col_index = None
+    for cell in header_row:
+        if cell.value and schedule_date_column in str(cell.value):
+            schedule_date_col_index = cell.col_idx - 1  # col_idx дает индекс на основе 1, а не 0
+            break
+
+    if schedule_date_col_index is None:
+        print(f"Не удалось найти столбец с названием '{schedule_date_column}' в первой строке.")
+        return None
+
+    # Найти индексы столбцов "Дата начала работ (from file2)" и "Дата окончания работ (from file2)"
+    start_work_col_index = None
+    end_work_col_index = None
+    for cell in header_row:
+        if cell.value and start_work_column in str(cell.value):
+            start_work_col_index = cell.col_idx - 1
+        elif cell.value and end_work_column in str(cell.value):
+            end_work_col_index = cell.col_idx - 1
+
+    if start_work_col_index is None or end_work_col_index is None:
+        print(f"Не удалось найти столбцы с названиями '{start_work_column}' или '{end_work_column}' в первой строке.")
+        return None
+
     # Подготовить заголовки для общих строк
     header_row = [cell.value for cell in sheet[1]]
-    summary_rows = [header_row + ['Да', 'Нет']]  # Добавляем новые столбцы в заголовок
+    summary_rows = [header_row + ['Да', 'Нет', 'Последняя дата отгрузки', 'Последняя дата начала работ', 'Последняя дата окончания работ']]  # Добавляем новые столбцы в заголовок
 
     # Обработать каждый диапазон
     for start_row, end_row, start_value in ranges:
@@ -142,6 +167,47 @@ def create_summary_rows(file_path, sheet_name, start_marker, end_marker, shipped
                 summary_row[col_idx] = next(iter(values_in_range))
             else:
                 summary_row[col_idx] = "Non"
+
+        # Найти последнюю дату отгрузки в диапазоне
+        latest_ship_date = None
+        for row_idx in range(start_row, end_row + 1):
+            cell_value = sheet.cell(row=row_idx, column=schedule_date_col_index + 1).value
+            if isinstance(cell_value, str):
+                try:
+                    cell_value = datetime.strptime(cell_value, "%d.%m.%Y")
+                except ValueError:
+                    cell_value = None
+            if latest_ship_date is None or (cell_value and cell_value > latest_ship_date):
+                latest_ship_date = cell_value
+
+        # Найти последнюю дату начала работ в диапазоне
+        latest_start_work_date = None
+        for row_idx in range(start_row, end_row + 1):
+            cell_value = sheet.cell(row=row_idx, column=start_work_col_index + 1).value
+            if isinstance(cell_value, str):
+                try:
+                    cell_value = datetime.strptime(cell_value, "%d.%m.%Y")
+                except ValueError:
+                    cell_value = None
+            if latest_start_work_date is None or (cell_value and cell_value > latest_start_work_date):
+                latest_start_work_date = cell_value
+
+        # Найти последнюю дату окончания работ в диапазоне
+        latest_end_work_date = None
+        for row_idx in range(start_row, end_row + 1):
+            cell_value = sheet.cell(row=row_idx, column=end_work_col_index + 1).value
+            if isinstance(cell_value, str):
+                try:
+                    cell_value = datetime.strptime(cell_value, "%d.%m.%Y")
+                except ValueError:
+                    cell_value = None
+            if latest_end_work_date is None or (cell_value and cell_value > latest_end_work_date):
+                latest_end_work_date = cell_value
+
+        # Добавить последние даты в конец общей строки
+        summary_row.append(latest_ship_date)
+        summary_row.append(latest_start_work_date)
+        summary_row.append(latest_end_work_date)
 
         # Добавить количество "Да" и "Нет" в конец общей строки
         for start_val, row_start, row_end, yes_count, no_count in results:
@@ -167,21 +233,23 @@ def create_summary_rows(file_path, sheet_name, start_marker, end_marker, shipped
     return summary_rows
 
 
+
 # Пример использования функций
-file_path = 'C:\\DataMerge\\SortedData_Output.xlsx'
+file_path = 'C:\\Users\\Alexey\\IdeaProjects\\DataMerge\\SortedData_Output.xlsx'
 sheet_name = 'GroupedData'  # замените на имя вашего листа
 start_marker = 'Код позиции (from file1)'
 end_marker = 'Кол-во'
 shipped_column = 'Отгружено (from file1)'
+schedule_date_column = 'Дата отгрузки (from file1)'
+start_work_column = 'Дата начала работ (from file1)'
+end_work_column = 'Дата окончания работ (from file1)'
+request_due_date_column = 'Срок по заявке (from file2)'
 
 # Получаем результаты подсчета "Да" и "Нет"
 results, total_yes_count, total_no_count = count_yes_no_in_shipped_column(file_path, sheet_name, start_marker, end_marker, shipped_column)
 
-# Создаем общие строки с добавлением столбцов "Да" и "Нет" и записываем на новый лист
-summary_rows = create_summary_rows(file_path, sheet_name, start_marker, end_marker, shipped_column)
-
-#move_ppp_column_to_left(file_path)
-
+# Создаем общие строки с добавлением столбцов "Да", "Нет" и "Последняя дата отгрузки" и записываем на новый лист
+summary_rows = create_summary_rows(file_path, sheet_name, start_marker, end_marker, shipped_column, schedule_date_column, start_work_column, end_work_column)
 
 if summary_rows is not None:
     print(f"Общие строки записаны на лист '{sheet_name}_Summary'.")
