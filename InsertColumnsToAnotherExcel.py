@@ -72,13 +72,13 @@ def find_matching_pairs(file1_path, sheet1_name, sheet1_column, file2_path, shee
     return matching_pairs
 
 # Пример использования функции
-file1_path = 'C:\\Users\\Alexey\\IdeaProjects\\DataMerge\\ДашбордСОВОФ.xlsx'
+file1_path = 'C:\\Users\\Alexey\\IdeaProjects\\DataMerge\\Выборка + СОВОФ.xlsx'
 sheet1_name = 'База График ТОиР и МТР'
 sheet1_column = 'B'
-file2_path = 'C:\\Users\\Alexey\\IdeaProjects\\DataMerge\\SortedData_Output.xlsx'
+file2_path = 'C:\\Users\\Alexey\\IdeaProjects\\DataMerge\\MergedData.xlsx'
 sheet2_name = 'GroupedData_Summary'
-key_column_sheet2 = 'AC'
-columns_to_add = ['BO', 'BP', 'BQ', 'BR', 'BS', 'AO', 'T']  # Список столбцов для добавления из второй таблицы
+key_column_sheet2 = 'Y'
+columns_to_add = ['BG', 'BH', 'BI', 'BJ', 'BK', 'AF', 'T']  # Список столбцов для добавления из второй таблицы
 
 matching_pairs = find_matching_pairs(file1_path, sheet1_name, sheet1_column, file2_path, sheet2_name, key_column_sheet2, columns_to_add)
 
