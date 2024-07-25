@@ -1,6 +1,5 @@
 import openpyxl
 import sys
-
 from datetime import datetime
 
 # Устанавливаем кодировку для стандартного ввода и вывода
@@ -103,8 +102,18 @@ def create_summary_rows(file_path, sheet_name, start_marker, end_marker, shipped
     start_work_col_index = find_column_index(header_row, start_work_column)
     end_work_col_index = find_column_index(header_row, end_work_column)
 
-    if shipped_col_index is None or schedule_date_col_index is None or start_work_col_index is None or end_work_col_index is None:
-        print("Не удалось найти все необходимые столбцы в первой строке.")
+    errors = []
+    if shipped_col_index is None:
+        errors.append(f"Не удалось найти столбец '{shipped_column}'")
+    if schedule_date_col_index is None:
+        errors.append(f"Не удалось найти столбец '{schedule_date_column}'")
+    if start_work_col_index is None:
+        errors.append(f"Не удалось найти столбец '{start_work_column}'")
+    if end_work_col_index is None:
+        errors.append(f"Не удалось найти столбец '{end_work_column}'")
+
+    if errors:
+        print("Ошибка: " + ", ".join(errors))
         return None
 
     header_row_values = [cell.value for cell in header_row]
